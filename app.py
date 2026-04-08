@@ -3,24 +3,36 @@ import requests
 
 app = Flask(__name__)
 
+BASE_QUERY = 'https://world.openfoodfacts.net/api/v2'
+API_AUTH = {"Authorization": "Basic + btoa('off:off')"}
+
+
 # Temporary array to simulate storage. The storage could contain data from the OPenFoodFacts API.
 inventory = []
 next_inventory_id = 0 # Key ffor identifying unique inventory based on id.
 
 
-# structure = {
-#   "status": 1,
-#   "product": {
-#     "product_name": "Organic Almond Milk",
-#     "brands": "Silk",
-#     "ingredients_text": "Filtered water, almonds, cane sugar, ..."
-#     // Additional product information
-#   }
-
-# OpenFoodFacts URLS.
-# - Get product by barcode: https://world.openfoodfacts.net/api/v2/product/3017624010701?fields=product_name,nutriscore_data or https://world.openfoodfacts.net/api/v2/product/{barcode}
-
 # function should be defined for searching API.
+def fetch_external_data(query, search_by="barcode"):
+    """Fetch product details from OpenFoodFacts API."""
+    try:
+        if search_by == "barcode":
+            url = f"{BASE_QUERY}/product/{query}.json"
+            response = requests.get(url, timeout=5, headers=API_AUTH)
+            data = response.json()
+            if data.get("status") == 1:
+                p = data["product"]
+                return {"name": p.get("product_name"), "brand": p.get("brands"), "category": p.get("categories")}
+        elif search_by == "name":
+            url = f"{BASE_QUERY}/search?categories_tags={query}&fields=code,product_name"
+            response = requests.get(url, timeout=5, headers=API_AUTH)
+            data = response.json()
+            if data.get("products") and len(data["products"]) > 0:
+                p = data["products"][0]
+                return {"name": p.get("product_name"), "brand": p.get("brands"), "category": p.get("categories")}
+    except requests.RequestException:
+        return None
+    return None
 
 #Flask Routes and their view functions
 @app.route('/inventory', methods=['GET'])
