@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
@@ -21,8 +22,8 @@ def fetch_external_data(query, search_by="barcode"):
             response = requests.get(url, timeout=5, headers=API_AUTH)
             data = response.json()
             if data.get("status") == 1:
-                p = data["product"]
-                return {"name": p.get("product_name"), "brand": p.get("brands"), "category": p.get("categories")}
+                product = data["product"]
+                return {"name": product.get("product_name"), "brand": product.get("brands"), "category": product.get("categories")}
         elif search_by == "name":
             url = f"{BASE_QUERY}/search?categories_tags={query}&fields=code,product_name"
             response = requests.get(url, timeout=5, headers=API_AUTH)
@@ -63,7 +64,12 @@ def add_inventory_item():
         "stock": request_data.get('stock', 0),
         "barcode": request_data.get('barcode', None)
     }
-
+    
+    if new_item['barcode']:
+        extra_data = fetch_external_data(new_item['barcode'], search_by="barcode")
+        if extra_data:
+            new_item['api_details'] = extra_data
+    
     inventory.append(new_item)
     next_inventory_id += 1
     return jsonify(new_item), 201
