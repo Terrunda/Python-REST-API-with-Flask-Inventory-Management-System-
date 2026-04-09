@@ -76,6 +76,33 @@
         .btn-edit { background-color: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 5px 10px;}
         .btn-delete { background-color: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 5px 10px;}
 
+        /* --- ADDED: Inline edit form inside each card --- */
+        .edit-form {
+            display: none;                      /* hidden until Edit is clicked */
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .edit-form.open { display: flex; }
+        .edit-form input { font-size: 14px; padding: 7px; }
+        .btn-save { background-color: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 5px 10px; }
+        .btn-cancel { background-color: #94a3b8; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 5px 10px; }
+
+        /* --- ADDED: API details badge inside card --- */
+        .api-details {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: #f0f9ff;
+            border-left: 3px solid var(--primary);
+            border-radius: 4px;
+            font-size: 13px;
+            color: #475569;
+        }
+        .api-details span { font-weight: 600; color: var(--primary); }
+
         /* Web Terminal CSS */
         .terminal-container {
             background: var(--terminal-bg);
@@ -150,18 +177,11 @@
 
         // --- ROUTING LOGIC ---
         function navigate(pageId, buttonElement) {
-            // Hide all pages
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-            // Remove active state from all buttons
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            
-            // Show selected page and highlight button
             document.getElementById(pageId).classList.add('active');
             buttonElement.classList.add('active');
-
-            // Refresh data if viewing inventory
             if (pageId === 'view-page') fetchInventory();
-            // Auto-focus CLI input if terminal is opened
             if (pageId === 'cli-page') document.getElementById('cli-input').focus();
         }
 
@@ -193,7 +213,7 @@
             }).then(() => {
                 alert("Item added successfully!");
                 document.querySelector("#inventory-form").reset();
-                navigate('view-page', document.querySelectorAll('.nav-btn')[0]); // Auto-route back to view
+                navigate('view-page', document.querySelectorAll('.nav-btn')[0]);
             });
         });
 
@@ -201,14 +221,65 @@
             const li = document.createElement("li");
             li.className = "item-card";
             li.id = `item-${item.id}`;
+
+            // --- ADDED: build API details block only if data exists ---
+            let apiBlock = "";
+            if (item.api_details) {
+                const d = item.api_details;
+                apiBlock = `
+                    <div class="api-details">
+                        <span>API:</span>
+                        ${d.brand ? ` Brand: ${d.brand} |` : ""}
+                        ${d.category ? ` Category: ${d.category}` : ""}
+                    </div>`;
+            }
+
             li.innerHTML = `
                 <h3 style="margin: 0;">ID: ${item.id} | ${item.name}</h3>
                 <p>Price: $${item.price.toFixed(2)} | Stock: ${item.stock}</p>
+                ${apiBlock}
                 <div class="actions">
+                    <button class="btn-edit" onclick="toggleEditForm(${item.id})">Edit</button>
                     <button class="btn-delete" onclick="deleteItem(${item.id})">Delete</button>
+                </div>
+
+                <!-- ADDED: inline edit form, hidden by default -->
+                <div class="edit-form" id="edit-form-${item.id}">
+                    <input type="text"   id="edit-name-${item.id}"  placeholder="Name"  value="${item.name}">
+                    <input type="number" id="edit-price-${item.id}" placeholder="Price" value="${item.price}" step="0.01">
+                    <input type="number" id="edit-stock-${item.id}" placeholder="Stock" value="${item.stock}">
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-save"   onclick="saveEdit(${item.id})">Save</button>
+                        <button class="btn-cancel" onclick="toggleEditForm(${item.id})">Cancel</button>
+                    </div>
                 </div>
             `;
             document.querySelector("#inventory-list").appendChild(li);
+        }
+
+        // --- ADDED: toggle the inline edit form open/closed ---
+        function toggleEditForm(id) {
+            const form = document.getElementById(`edit-form-${id}`);
+            form.classList.toggle("open");
+        }
+
+        // --- ADDED: send PATCH request with updated fields ---
+        function saveEdit(id) {
+            const payload = {
+                name:  document.getElementById(`edit-name-${id}`).value,
+                price: parseFloat(document.getElementById(`edit-price-${id}`).value),
+                stock: parseInt(document.getElementById(`edit-stock-${id}`).value)
+            };
+            fetch(`${API_BASE}/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+            .then(res => {
+                if (res.ok) fetchInventory();        // re-render the list on success
+                else alert("Update failed. Check the server.");
+            })
+            .catch(() => alert("Error connecting to API."));
         }
 
         function deleteItem(id) {
@@ -223,14 +294,14 @@
 
         function printToTerminal(text) {
             terminalOutput.textContent += `\n${text}`;
-            terminalOutput.scrollTop = terminalOutput.scrollHeight; // Auto-scroll
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
         }
 
         cliInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 const command = this.value.trim();
                 printToTerminal(`\nadmin@inventory:~$ ${command}`);
-                this.value = ''; // Clear input
+                this.value = '';
                 processCommand(command);
             }
         });
@@ -241,16 +312,75 @@
 
             try {
                 if (action === 'help') {
-                    printToTerminal("Available commands:\n- list : Shows all items\n- delete [id] : Removes an item by ID\n- clear : Clears terminal");
-                } 
+                    printToTerminal(
+                        "Available commands:\n" +
+                        "  list                          — Show all items\n" +
+                        "  add [name] [price] [stock]    — Add a new item (barcode optional as 4th arg)\n" +
+                        "  update [id] [field] [value]   — Update a field (name, price, stock)\n" +
+                        "  delete [id]                   — Remove an item by ID\n" +
+                        "  clear                         — Clear terminal"
+                    );
+                }
                 else if (action === 'clear') {
                     terminalOutput.textContent = "Welcome to Web CLI. Type 'help' for commands.";
                 }
                 else if (action === 'list') {
                     const res = await fetch(API_BASE);
                     const items = await res.json();
-                    if (items.length === 0) printToTerminal("Inventory is empty.");
-                    items.forEach(i => printToTerminal(`ID: ${i.id} | ${i.name} - $${i.price} (Stock: ${i.stock})`));
+                    if (items.length === 0) { printToTerminal("Inventory is empty."); return; }
+                    items.forEach(i => {
+                        let line = `ID: ${i.id} | ${i.name} - $${i.price} (Stock: ${i.stock})`;
+                        // --- ADDED: show brand from api_details if present ---
+                        if (i.api_details?.brand) line += ` [${i.api_details.brand}]`;
+                        printToTerminal(line);
+                    });
+                }
+
+                else if (action === 'add') {
+                    if (!args[1] || !args[2] || !args[3]) {
+                        printToTerminal("Usage: add [name] [price] [stock] [barcode?]\nExample: add Milk 1.99 50");
+                        return;
+                    }
+                    const payload = {
+                        name: args[1],
+                        price: parseFloat(args[2]),
+                        stock: parseInt(args[3]),
+                        barcode: args[4] || null
+                    };
+                    const res = await fetch(API_BASE, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    const newItem = await res.json();
+                    printToTerminal(`Added: ID ${newItem.id} | ${newItem.name} - $${newItem.price} (Stock: ${newItem.stock})`);
+                }
+                // --- ADDED: update command ---
+                else if (action === 'update') {
+                    if (!args[1] || !args[2] || !args[3]) {
+                        printToTerminal("Usage: update [id] [field] [value]\nExample: update 2 price 4.99\nFields: name, price, stock");
+                        return;
+                    }
+                    const id    = args[1];
+                    const field = args[2].toLowerCase();
+                    const raw   = args[3];
+
+                    if (!['name', 'price', 'stock'].includes(field)) {
+                        printToTerminal(`Unknown field "${field}". Valid fields: name, price, stock`);
+                        return;
+                    }
+                    const value = field === 'name' ? raw : field === 'price' ? parseFloat(raw) : parseInt(raw);
+                    const res = await fetch(`${API_BASE}/${id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ [field]: value })
+                    });
+                    if (res.ok) {
+                        const updated = await res.json();
+                        printToTerminal(`Updated ID ${id}: ${field} → ${value}`);
+                    } else {
+                        printToTerminal(`Error: Item ${id} not found.`);
+                    }
                 }
                 else if (action === 'delete') {
                     if (!args[1]) {
