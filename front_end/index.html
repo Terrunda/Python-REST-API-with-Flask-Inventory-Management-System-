@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Admin Dashboard</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --terminal-bg: #1e1e1e;
+            --terminal-text: #00ff00;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Navigation (Routing) */
+        nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .nav-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            color: #64748b;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 4px;
+        }
+        .nav-btn:hover { background-color: #e2e8f0; }
+        .nav-btn.active {
+            color: var(--primary);
+            background-color: #dbeafe;
+        }
+
+        /* Page Containers */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* Standard Forms & Grids */
+        .add-form {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        input, button { padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 16px; }
+        .action-btn { background-color: var(--primary); color: white; border: none; cursor: pointer; }
+        .action-btn:hover { background-color: #1d4ed8; }
+        
+        #inventory-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 0;
+            list-style: none;
+        }
+        .item-card { background: var(--card-bg); border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .actions { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-edit { background-color: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 5px 10px;}
+        .btn-delete { background-color: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 5px 10px;}
+
+        /* Web Terminal CSS */
+        .terminal-container {
+            background: var(--terminal-bg);
+            color: var(--terminal-text);
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        #terminal-output {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+        }
+        .terminal-input-row { display: flex; align-items: center; }
+        .terminal-prompt { margin-right: 10px; }
+        #cli-input {
+            background: transparent;
+            border: none;
+            color: var(--terminal-text);
+            flex-grow: 1;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Inventory Management System</h1>
+    </div>
+
+    <nav>
+        <button class="nav-btn active" onclick="navigate('view-page', this)">View Inventory</button>
+        <button class="nav-btn" onclick="navigate('add-page', this)">Add Item</button>
+        <button class="nav-btn" onclick="navigate('cli-page', this)">Web Terminal</button>
+    </nav>
+
+    <div id="view-page" class="page active">
+        <h2>Current Stock</h2>
+        <ul id="inventory-list"></ul>
+    </div>
+
+    <div id="add-page" class="page">
+        <h2>Add New Product</h2>
+        <form id="inventory-form" class="add-form">
+            <input type="text" id="name" placeholder="Product Name (Required)" required>
+            <input type="number" id="price" placeholder="Price ($)" step="0.01" required>
+            <input type="number" id="stock" placeholder="Stock Quantity" required>
+            <input type="text" id="barcode" placeholder="Barcode (Optional API Fetch)">
+            <button type="submit" class="action-btn">Add to Inventory</button>
+        </form>
+    </div>
+
+    <div id="cli-page" class="page">
+        <h2>Command Line Interface</h2>
+        <div class="terminal-container">
+            <div id="terminal-output">Welcome to Web CLI. Type 'help' for commands.</div>
+            <div class="terminal-input-row">
+                <span class="terminal-prompt">admin@inventory:~$</span>
+                <input type="text" id="cli-input" autocomplete="off" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:5000/inventory";
+
+        // --- ROUTING LOGIC ---
+        function navigate(pageId, buttonElement) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            // Remove active state from all buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected page and highlight button
+            document.getElementById(pageId).classList.add('active');
+            buttonElement.classList.add('active');
+
+            // Refresh data if viewing inventory
+            if (pageId === 'view-page') fetchInventory();
+            // Auto-focus CLI input if terminal is opened
+            if (pageId === 'cli-page') document.getElementById('cli-input').focus();
+        }
+
+        // --- CORE INVENTORY LOGIC ---
+        document.addEventListener('DOMContentLoaded', fetchInventory);
+
+        function fetchInventory() {
+            fetch(API_BASE)
+                .then(res => res.json())
+                .then(items => {
+                    const list = document.querySelector("#inventory-list");
+                    list.innerHTML = "";
+                    items.forEach(renderItemCard);
+                }).catch(err => console.error(err));
+        }
+
+        document.querySelector("#inventory-form").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const payload = {
+                name: document.querySelector("#name").value,
+                price: parseFloat(document.querySelector("#price").value),
+                stock: parseInt(document.querySelector("#stock").value),
+                barcode: document.querySelector("#barcode").value || null
+            };
+            fetch(API_BASE, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                alert("Item added successfully!");
+                document.querySelector("#inventory-form").reset();
+                navigate('view-page', document.querySelectorAll('.nav-btn')[0]); // Auto-route back to view
+            });
+        });
+
+        function renderItemCard(item) {
+            const li = document.createElement("li");
+            li.className = "item-card";
+            li.id = `item-${item.id}`;
+            li.innerHTML = `
+                <h3 style="margin: 0;">ID: ${item.id} | ${item.name}</h3>
+                <p>Price: $${item.price.toFixed(2)} | Stock: ${item.stock}</p>
+                <div class="actions">
+                    <button class="btn-delete" onclick="deleteItem(${item.id})">Delete</button>
+                </div>
+            `;
+            document.querySelector("#inventory-list").appendChild(li);
+        }
+
+        function deleteItem(id) {
+            if (!confirm("Delete item?")) return;
+            fetch(`${API_BASE}/${id}`, { method: "DELETE" })
+                .then(() => fetchInventory());
+        }
+
+        // --- WEB TERMINAL LOGIC ---
+        const cliInput = document.getElementById('cli-input');
+        const terminalOutput = document.getElementById('terminal-output');
+
+        function printToTerminal(text) {
+            terminalOutput.textContent += `\n${text}`;
+            terminalOutput.scrollTop = terminalOutput.scrollHeight; // Auto-scroll
+        }
+
+        cliInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                const command = this.value.trim();
+                printToTerminal(`\nadmin@inventory:~$ ${command}`);
+                this.value = ''; // Clear input
+                processCommand(command);
+            }
+        });
+
+        async function processCommand(cmd) {
+            const args = cmd.split(' ');
+            const action = args[0].toLowerCase();
+
+            try {
+                if (action === 'help') {
+                    printToTerminal("Available commands:\n- list : Shows all items\n- delete [id] : Removes an item by ID\n- clear : Clears terminal");
+                } 
+                else if (action === 'clear') {
+                    terminalOutput.textContent = "Welcome to Web CLI. Type 'help' for commands.";
+                }
+                else if (action === 'list') {
+                    const res = await fetch(API_BASE);
+                    const items = await res.json();
+                    if (items.length === 0) printToTerminal("Inventory is empty.");
+                    items.forEach(i => printToTerminal(`ID: ${i.id} | ${i.name} - $${i.price} (Stock: ${i.stock})`));
+                }
+                else if (action === 'delete') {
+                    if (!args[1]) {
+                        printToTerminal("Error: Please provide an ID. Example: delete 1");
+                        return;
+                    }
+                    const res = await fetch(`${API_BASE}/${args[1]}`, { method: "DELETE" });
+                    if (res.ok) printToTerminal(`Item ${args[1]} deleted.`);
+                    else printToTerminal(`Error: Item ${args[1]} not found.`);
+                }
+                else if (action !== '') {
+                    printToTerminal(`Command not found: ${action}. Type 'help' for available commands.`);
+                }
+            } catch (err) {
+                printToTerminal("Error connecting to API. Is Flask running?");
+            }
+        }
+    </script>
+</body>
+</html>

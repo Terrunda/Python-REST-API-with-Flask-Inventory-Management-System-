@@ -1,11 +1,14 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
+import base64
 
 app = Flask(__name__)
+CORS(app)
 
+MAIN_AUTH = base64.b64encode(b'off:off').decode()
+API_AUTH = {"Authorization": f"Basic {MAIN_AUTH}"}
 BASE_QUERY = 'https://world.openfoodfacts.net/api/v2'
-API_AUTH = {"Authorization": "Basic + btoa('off:off')"}
 
 
 # Temporary array to simulate storage. The storage could contain data from the OPenFoodFacts API.
@@ -25,7 +28,7 @@ def fetch_external_data(query, search_by="barcode"):
                 product = data["product"]
                 return {"name": product.get("product_name"), "brand": product.get("brands"), "category": product.get("categories")}
         elif search_by == "name":
-            url = f"{BASE_QUERY}/search?categories_tags={query}&fields=code,product_name"
+            url = f"{BASE_QUERY}/search?categories_tags={query}&fields=code,product_name,brands,categories"
             response = requests.get(url, timeout=5, headers=API_AUTH)
             data = response.json()
             if data.get("products") and len(data["products"]) > 0:
@@ -44,7 +47,7 @@ def view_inventory():
 @app.route('/inventory/<int:id>', methods=['GET'])
 def view_inventory_item(id):
     inventory_query = next((item for item in inventory if item["id"] == id), None)
-    if inventory_query == None:
+    if inventory_query is None:
         return jsonify(f'Item with id: {id} not found'), 404
     else:
         return jsonify(inventory_query), 200
@@ -55,7 +58,7 @@ def add_inventory_item():
     global next_inventory_id
     
     if not request_data or 'name' not in request_data:
-        return jsonify({"error": "Item name is required"}), 400
+        return jsonify("Error: Item name is required"), 400
 
     new_item = {
         "id": next_inventory_id,
@@ -76,11 +79,13 @@ def add_inventory_item():
 
 @app.route('/inventory/<int:id>', methods= ['PATCH'])
 def update_inventory_item(id):
+    request_data = request.get_json()
+    if not request_data:
+        return jsonify("Error: No data provided"), 400
     item = next((i for i in inventory if i['id'] == id), None)
     if not item:
         return jsonify({"Error": "Item not found"}), 404
 
-    request_data = request.get_json()
     if 'price' in request_data:
         item['price'] = request_data['price']
     if 'stock' in request_data:
@@ -97,8 +102,8 @@ def delete_inventory_item(id):
     inventory = [i for i in inventory if i['id'] != id]
     
     if len(inventory) < initial_len:
-        return jsonify("Item deleted"), 204
+        return jsonify(''), 204
     return jsonify("Error: Item not found"), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port = 5000)
