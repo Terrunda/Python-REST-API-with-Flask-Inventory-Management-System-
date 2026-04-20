@@ -8,5 +8,8 @@ https://moringa.instructure.com/courses/1389/assignments/87559/
 - Run `pipenv shell` to activate the virtual environment.
 
 ## Running the app
-- In the terminal, run `python app.py` 
-- Open the `index.html` file in a browser to view and interact with the frontend.
+- In the terminal, run `python app.py` to start the Flask server.
+- In another terminal, run `python cli.py` to initialise the CLI.
+
+## Tests
+- Run `pytest` in the terminal to observe each test.
