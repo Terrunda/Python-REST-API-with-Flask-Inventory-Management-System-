@@ -1,10 +1,9 @@
 from flask import Flask, jsonify, request
-from flask_cors import CORS
 import requests
 import base64
 
 app = Flask(__name__)
-CORS(app)
+
 
 MAIN_AUTH = base64.b64encode(b'off:off').decode()
 API_AUTH = {"Authorization": f"Basic {MAIN_AUTH}"}
