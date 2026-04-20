@@ -1,4 +1,5 @@
 import pytest
+from _pytest.capture import CaptureFixture
 from unittest.mock import patch, MagicMock
 import requests
 
@@ -33,7 +34,6 @@ def test_view_all_items_success(mock_get, capsys: CaptureFixture[str]):
         {"id": 1, "name": "Apple", "price": 1.5, "stock": 100}
     ])
 
-    # Act
     view_all_items()
     
     mock_get.assert_called_once_with(f"{BASE_URL}/inventory")

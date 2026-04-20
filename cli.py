@@ -3,14 +3,12 @@ import time
 import requests
 from app import fetch_external_data
 
-line_separator = '-' * 30
-
 
 BASE_URL = "http://127.0.0.1:5000" # CRUD operations to be prefixed with this to link to the Flask backend
 # Key facts: Use try except syntax on API operations.
 
 def print_cli_menu():
-    print("GENERAL INFORMATION: Before using the CLI, ensure that Flask is running.")
+    print("GENERAL INFORMATION: After intialising the CLI, ensure that Flask is running. To do this, run 'python app.py' in a different terminal.")
     print("--- Inventory CLI ---")
     print("1: View all items")
     print("2: View item by id")
@@ -20,9 +18,9 @@ def print_cli_menu():
     print("6: Find item on OpenFoodFacts API")
     print("7: Exit")
 
-# def convert_into_dictionary(): #Function will be used to convert JSON responses from Flask into Python dictionaries.
-#     #inbuild JSON functions could be used instead.
-#     pass
+line_separator = '-' * 40
+defined_start_of_separator = f'\n\n{line_separator}'
+defined_end_of_separator = f'{line_separator} \n\n'
 
 # main functions for each CLI command.
 def view_all_items():
@@ -55,6 +53,7 @@ def view_item_by_id():
 
         #Case of the item witb the specified id being found.
         item = request_to_flask.json()
+        print('Item found.')
         print(f"ID: {item.get('id')} | Name: {item.get('name')} | Price: ${item.get('price', 0)} | Stock: {item.get('stock', 0)}")
 
 
@@ -70,6 +69,7 @@ def add_item():
         barcode_query = str(input("Do you want to enter a barcode? (y/n): ")).lower().strip()
         if barcode_query == 'y':
             barcode = input("Enter barcode (or leave empty): ")
+            break
         elif barcode_query == 'n':
             barcode = None
             break
@@ -79,8 +79,8 @@ def add_item():
     
 
     name = str(input('Enter the product name: '))
-    price = float(input('Enter the price of the product: '))
-    stock = int(input('Enter the stock level'))
+    price = input('Enter the price of the product: ')
+    stock = int(input('Enter the stock level: '))
 
     
 
