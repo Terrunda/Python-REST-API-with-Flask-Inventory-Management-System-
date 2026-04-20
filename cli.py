@@ -30,16 +30,22 @@ def view_all_items():
         items = request_to_flask.json()
 
         if not items:
+            print(defined_start_of_separator)
             print('Inventory is empty')
+            print(defined_end_of_separator)
             return
         
         #Iterationt through inventory items. They are referenced as dictionaries.
-        print("[Current Inventory]")
+        print("\n--- [CURRENT INVENTORY] ---")
+        print(defined_start_of_separator)
         for item in items:
             print(f"ID: {item.get('id')} | Name: {item.get('name')} | Price: ${item.get('price', 0)} | Stock: {item.get('stock', 0)}")
+        print(defined_end_of_separator)
  
     except requests.exceptions.RequestException as error:
+        print(defined_start_of_separator)
         print(f"Failed to connect to API: {error}")
+        print(defined_end_of_separator)
 
 def view_item_by_id():
     item_id = input("Enter item ID: ")
@@ -47,18 +53,24 @@ def view_item_by_id():
         request_to_flask = requests.get(f"{BASE_URL}/inventory/{item_id}")
 
         if request_to_flask.status_code == 404: #Code of 404 means the item id passed as an argument by the user could not be found.
+            print(defined_start_of_separator)
             print(f"Item with ID {item_id} not found.")
+            print(defined_end_of_separator)
         
         request_to_flask.raise_for_status()
 
         #Case of the item witb the specified id being found.
         item = request_to_flask.json()
         print('Item found.')
+        print(defined_start_of_separator)
         print(f"ID: {item.get('id')} | Name: {item.get('name')} | Price: ${item.get('price', 0)} | Stock: {item.get('stock', 0)}")
+        print(defined_end_of_separator)
 
 
     except requests.exceptions.RequestException as error:
+            print(defined_start_of_separator)
             print(f"Failed to connect to API: {error}")
+            print(defined_end_of_separator)
 
 def add_item():
     # Inputs for adding item
@@ -94,10 +106,14 @@ def add_item():
     try:
         request_to_flask = requests.post(f"{BASE_URL}/inventory", json=request_payload)
         request_to_flask.raise_for_status()
+        print(defined_start_of_separator)
         print("[Success] Item added successfully!")
+        print(defined_end_of_separator)
 
-    except requests.exceptions.RequestException as e:
-        print(f"\n[Error] Failed to add item. API Error: {e}")
+    except requests.exceptions.RequestException as error:
+        print(defined_start_of_separator)
+        print(f"Failed to add item. API Error: {error}")
+        print(defined_end_of_separator)
 
 def update_item():
     item_id = input("Enter item ID to update: ")
@@ -109,7 +125,7 @@ def update_item():
     stock = None
 
     while not updateFlag:
-        attribute_query = str(input("Which attribute do you want to update? Available choices: [name, price, stock]")).lower().strip()
+        attribute_query = str(input("Which attribute do you want to update? Available choices: [name, price, stock]: ")).lower().strip()
         if attribute_query == 'name':
             name = str(input("Enter new name: "))
             break
@@ -142,14 +158,20 @@ def update_item():
         update_request = requests.patch(f"{BASE_URL}/inventory/{item_id}", json=request_payload)
         
         if update_request.status_code == 404:
+            print(defined_start_of_separator)
             print(f"Item with ID {item_id} not found.")
+            print(defined_end_of_separator)
             return
             
         update_request.raise_for_status()
+        print(defined_start_of_separator)
         print("Item updated successfully!")
+        print(defined_end_of_separator)
 
     except requests.exceptions.RequestException as error:
+        print(defined_start_of_separator)
         print(f"Failed to update item. API Error: {error}")
+        print(defined_end_of_separator)
 
 def delete_item():
     item_id = input("Enter item ID to delete: ")
@@ -157,14 +179,20 @@ def delete_item():
         delete_request = requests.delete(f"{BASE_URL}/inventory/{item_id}")
         
         if delete_request.status_code == 404:
+            print(defined_start_of_separator)
             print(f"Item with ID {item_id} not found.")
+            print(defined_end_of_separator)
             return
             
         delete_request.raise_for_status()
+        print(defined_start_of_separator)
         print(f"Item {item_id} deleted successfully!")
+        print(defined_end_of_separator)
         
     except requests.exceptions.RequestException as error:
+        print(defined_start_of_separator)
         print(f"Failed to delete item. Error: {error}")
+        print(defined_end_of_separator)
 
 def find_on_api():
     api_query_flag = False
@@ -188,13 +216,17 @@ def find_on_api():
     data = fetch_external_data(query, search_by)
     
     if not data:
+        print(defined_start_of_separator)
         print("Product not found on external API.")
+        print(defined_end_of_separator)
     
     elif data:
+        print(defined_start_of_separator)
         print("--- OpenFoodFacts API Details ---")
         print(f"Name: {data.get('name', 'N/A')}")
         print(f"Brand: {data.get('brand', 'N/A')}")
         print(f"Category/Nutriscore: {data.get('nutriscore', data.get('category', 'N/A'))}")
+        print(defined_end_of_separator)
         
 
 if __name__ == '__main__':
