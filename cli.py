@@ -3,6 +3,9 @@ import time
 import requests
 from app import fetch_external_data
 
+line_separator = '-' * 30
+
+
 BASE_URL = "http://127.0.0.1:5000" # CRUD operations to be prefixed with this to link to the Flask backend
 # Key facts: Use try except syntax on API operations.
 
@@ -97,7 +100,56 @@ def add_item():
         print(f"\n[Error] Failed to add item. API Error: {e}")
 
 def update_item():
-    pass
+    item_id = input("Enter item ID to update: ")
+
+    updateFlag = False
+
+    name = None
+    price = None
+    stock = None
+
+    while not updateFlag:
+        attribute_query = str(input("Which attribute do you want to update? Available choices: [name, price, stock]")).lower().strip()
+        if attribute_query == 'name':
+            name = str(input("Enter new name: "))
+            break
+
+        elif attribute_query == 'price':
+            try: 
+                price = float(input("Enter new price: "))
+                break
+            except ValueError:
+                print("Invalid price. Please enter a number.")
+
+        elif attribute_query == 'stock':
+            try:
+                stock = int(input("Enter new stock level: "))
+                break
+            except ValueError:
+                print("Invalid stock. Please enter a whole number.")
+            
+        else:
+            print('Invalid input. Please select from one of the available choices: [name, price, stock]')
+
+    
+    request_payload = {}
+    try:
+        # Conditional additon to the dictionary based on whether the value is not None.
+        if name: request_payload['name'] = name
+        if price: request_payload['price'] = float(price)
+        if stock: request_payload['stock'] = int(stock)
+
+        update_request = requests.patch(f"{BASE_URL}/inventory/{item_id}", json=request_payload)
+        
+        if update_request.status_code == 404:
+            print(f"Item with ID {item_id} not found.")
+            return
+            
+        update_request.raise_for_status()
+        print("Item updated successfully!")
+
+    except requests.exceptions.RequestException as error:
+        print(f"Failed to update item. API Error: {error}")
 
 def delete_item():
     item_id = input("Enter item ID to delete: ")
