@@ -256,6 +256,7 @@ if __name__ == '__main__':
                 print('Termminating...')
                 time.sleep(1)
                 print('CLI terminated.')
+                print('TIP: Whenever terminating the CLI, ensure that the Flask server is terminated.')
                 time.sleep(1)
                 break
             else:
